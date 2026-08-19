@@ -19,3 +19,4 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install ".[dev]"
       - run: python -m pytest -q
+      - run: python -m mandateguard.cli --state-dir "$RUNNER_TEMP/mg" set-scope --actor ci --tools pay && python -m mandateguard.cli --state-dir "$RUNNER_TEMP/mg" authorize --tool pay --destination 0xX --amount 1 --actor ci
