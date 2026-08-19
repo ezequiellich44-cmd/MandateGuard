@@ -1,0 +1,104 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Live Demo — MandateGuard deterministic payment policy for AI agents</title><meta name="description" content="Interactive demo of MandateGuard: watch the deterministic policy engine approve and deny payment calls with no LLM in the decision path. Same inputs, same verdict, always."><style>  :root { --bg:#0b0f14; --card:#12181f; --line:#1f2933; --text:#e5e7eb; --muted:#9aa4b2; --accent:#22d3ee; --accent2:#34d399; --danger:#f87171; }  * { box-sizing:border-box; margin:0; padding:0; }  body { background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.6; }  .wrap { max-width:960px; margin:0 auto; padding:0 24px; }  header { padding:26px 0; border-bottom:1px solid var(--line); }  .logo { font-weight:700; font-size:19px; }  .logo span { color:var(--accent); }  nav a { color:var(--muted); margin-left:20px; text-decoration:none; font-size:14px; }  h1 { font-size:32px; font-weight:800; margin:36px 0 8px; }  .sub { color:var(--muted); margin-bottom:28px; }  .demo { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:24px; margin-bottom:24px; }  label { display:block; color:var(--muted); font-size:13px; margin:14px 0 6px; }  select, input { width:100%; background:#0d1217; border:1px solid var(--line); border-radius:6px; color:var(--text); padding:10px; font-size:14px; margin-bottom:4px; }  .row { display:flex; gap:16px; flex-wrap:wrap; }  .col { flex:1; min-width:220px; }  .btn { display:inline-block; background:var(--accent); color:#06121a; font-weight:700; padding:12px 24px; border:none; border-radius:8px; cursor:pointer; font-size:14px; margin-top:16px; }  .btn.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }  .result { margin-top:20px; border-radius:8px; padding:16px; font-family:Consolas,monospace; font-size:14px; white-space:pre-wrap; word-break:break-all; }  .approved { background:#0c2418; border:1px solid #14532d; color:var(--accent2); }  .denied { background:#2a0f0f; border:1px solid #7f1d1d; color:var(--danger); }  .ledger { margin-top:16px; background:#0d1217; border:1px solid var(--line); border-radius:8px; padding:14px; font-family:Consolas,monospace; font-size:12px; color:var(--muted); max-height:200px; overflow-y:auto; }  .ledger div { border-top:1px solid var(--line); padding:6px 0; }  code { background:#0d1217; border:1px solid var(--line); border-radius:4px; padding:2px 6px; font-size:13px; }  .pitch { margin:36px 0; }  .btn-cta { display:inline-block; background:var(--accent); color:#06121a; font-weight:700; padding:13px 26px; border-radius:8px; text-decoration:none; margin:6px 6px 6px 0; }  .btn-cta.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }  footer { border-top:1px solid var(--line); padding:26px 0; color:var(--muted); font-size:13px; text-align:center; margin-top:44px; }</style></head><body><header>  <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;">    <div class="logo">Mandate<span>Guard</span></div>    <nav>      <a href="/MandateGuard/">Home</a>      <a href="/MandateGuard/#buy">Buy</a>      <a href="https://github.com/ezequiellich44-cmd/MandateGuard">GitHub</a>    </nav>  </div></header><div class="wrap">
+  <h1>Live demo: the deterministic engine</h1>
+  <p class="sub">This is the exact decision logic MandateGuard runs — in your browser, no LLM involved. Same inputs → same verdict, every time. The ledger below is chained like the real thing.</p>
+
+  <div class="demo">
+    <div class="row">
+      <div class="col">
+        <label>Destination</label>
+        <select id="dest">
+          <option value="0xGOOD" selected>0xGOOD (allowed)</option>
+          <option value="0xTRUSTED-VENDOR">0xTRUSTED-VENDOR (allowed)</option>
+          <option value="0xSCAM">0xSCAM (denylisted)</option>
+          <option value="0xATTACKER">0xATTACKER (not allowlisted)</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>Amount (USDT)</label>
+        <input id="amt" type="number" value="80" min="0" step="10">
+      </div>
+      <div class="col">
+        <label>Tool</label>
+        <select id="tool">
+          <option value="pay" selected>pay</option>
+          <option value="withdraw">withdraw</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" onclick="evalCall()">Evaluate authorize()</button>
+    <button class="btn ghost" onclick="reset()">Reset budget</button>
+    <div id="result" class="result denied" style="display:none;"></div>
+    <div class="ledger" id="ledger"><div style="border-top:none;color:var(--muted);">ledger — every decision appended (head hash chained)</div></div>
+  </div>
+
+  <div class="pitch">
+    <h2>Same inputs. Same verdict. Always.</h2>
+    <p class="sub">Budgets, allowlists, denylists, rate limits, and signed Ed25519 mandates evaluated by a pure function — with zero LLM sampling in the path. Try the loop: approve <code>0xGOOD</code> until the per-window budget is spent, then watch the same call get <b>DENIED</b>. A prompt injection cannot change that verdict.</p>
+    <a class="btn-cta" href="/MandateGuard/#buy">Buy Pro — 149 USDT/mo</a>
+    <a class="btn-cta ghost" href="https://github.com/ezequiellich44-cmd/MandateGuard">Get the engine (MIT)</a>
+  </div>
+</div>
+
+<script>
+var ALLOWLIST = ["0xGOOD", "0xTRUSTED-VENDOR"];
+var DENYLIST = ["0xSCAM"];
+var MAX_CALLS = 5;
+var MAX_AMOUNT = 1000;
+var calls = 0;
+var spent = 0;
+var headHash = "genesis".repeat(4).slice(0, 64);
+var ledger = [];
+
+function sha256(str) {
+  // FNV-1a 64-bit chained hash (deterministic, not crypto — demo only)
+  var h = 0xcbf29ce484222325;
+  for (var i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x100000001b3) >>> 0;
+  }
+  return ("0000000000000000" + h.toString(16)).slice(-16).repeat(4);
+}
+
+function appendLedger(entry) {
+  headHash = sha256(headHash + entry);
+  ledger.push(entry + " | head " + headHash.slice(0, 16) + "…");
+  var box = document.getElementById("ledger");
+  var line = document.createElement("div");
+  line.textContent = entry + "  ·  head " + headHash.slice(0, 16) + "…";
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function evalCall() {
+  var dest = document.getElementById("dest").value;
+  var amt = parseFloat(document.getElementById("amt").value) || 0;
+  var tool = document.getElementById("tool").value;
+  var reason = null;
+
+  if (tool !== "pay") reason = "tool '" + tool + "' not allowed";
+  else if (DENYLIST.indexOf(dest) >= 0) reason = "destination " + dest + " is denylisted";
+  else if (ALLOWLIST.indexOf(dest) < 0) reason = "destination " + dest + " not in allowlist";
+  else if (calls >= MAX_CALLS) reason = "rate limit: max " + MAX_CALLS + " calls/window reached";
+  else if (amt > MAX_AMOUNT) reason = "per-call max exceeded: " + MAX_AMOUNT;
+  else if (spent + amt > 5000) reason = "global budget exceeded";
+
+  var box = document.getElementById("result");
+  box.style.display = "block";
+  if (reason) {
+    box.className = "result denied";
+    box.textContent = "DENIED — " + reason;
+    appendLedger("DENIED  dest=" + dest + " tool=" + tool + " amount=" + amt + " (" + reason + ")");
+  } else {
+    calls++; spent += amt;
+    box.className = "result approved";
+    box.textContent = "APPROVED — dest=" + dest + " amount=" + amt + " (calls " + calls + "/" + MAX_CALLS + ", spent " + spent + " USDT)";
+    appendLedger("APPROVED  dest=" + dest + " tool=" + tool + " amount=" + amt + " (calls " + calls + "/" + MAX_CALLS + ")");
+  }
+}
+
+function reset() {
+  calls = 0; spent = 0;
+  document.getElementById("ledger").innerHTML = "<div style='border-top:none;color:var(--muted);'>ledger — every decision appended (head hash chained)</div>";
+  document.getElementById("result").style.display = "none";
+}
+</script><footer><div class="wrap">MandateGuard v1.0.0 · MIT core · Pay in USDT (Solana / Ethereum) · © 2026 Eze Lech</div></footer></body></html>
