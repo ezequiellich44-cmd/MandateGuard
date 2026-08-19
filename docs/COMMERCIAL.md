@@ -16,6 +16,45 @@ All tiers share the same binary: Pro/Enterprise are activated with a signed
 license key. This keeps distribution trivial (one wheel) and upgrades
 instant (one string).
 
+## Payments (USDT — Phantom wallets)
+
+All Pro/Enterprise sales are paid in **USDT** to the maintainer's wallets:
+
+| Chain | Wallet | Token |
+| ----- | ------ | ----- |
+| Solana | `3fZSMAyCEMhZwWiynbJDjoYNUT97aiV9BLzoUNroEMAz` | USDT-SPL |
+| Ethereum | `0x4Ed4D0750453C027FA8398067d5af980Bcc9B6eD` | USDT-ERC20 |
+
+### Automated order → payment → license pipeline
+
+```bash
+# 1. Create the order (prints the pay-to address and USDT amount)
+python tools/sell.py order --customer Acme --plan pro --seats 5 --months 12
+
+# 2. Customer sends USDT to the printed wallet, shares the tx hash + order id.
+
+# 3. Verify the payment on-chain and issue the license automatically
+python tools/sell.py satisfy --order MG-0001 --key <LICENSE_PRIVATE_KEY> \
+    --chain solana --expected-usdt 149 --tx-hash <customer_tx>
+
+# Or verify a specific transfer:
+python tools/verify_payment.py --chain solana --invoice MG-0001 \
+    --expected-usdt 149 --tx-hash <customer_tx>
+```
+
+`satisfy` only issues the license after on-chain confirmation (RPC for Solana,
+Etherscan for Ethereum). Keep `.mandateguard_orders.json` as your sales ledger
+(`tools/sell.py orders` lists all orders and statuses).
+
+### Getting paid without the pipeline (manual)
+
+1. Agree on plan + seats.
+2. Share the relevant wallet above and the amount in USDT.
+3. On receipt, verify the tx (Solscan / Etherscan) and run
+   `python tools/sell.py license --key <priv> --customer X --plan pro --seats 5 --months 12`.
+4. Email the license string; the customer activates via
+   `mandateguard license-verify` or MCP `activate_license`.
+
 ## Licensing mechanics
 
 1. Generate your vendor keys once (keep private key secret):
