@@ -111,8 +111,9 @@ verify_mandate(issuer.public_key_bytes, m, sig)   # True
 ## Architecture
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the decision flow and
-state model, and [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for what this
-does and does not protect against.
+state model, [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for what this does
+and does not protect against, and [docs/LAUNCH.md](docs/LAUNCH.md) for the
+commercial pitch and go-to-market kit.
 
 ```
 Agent intent ──> authorize(intent) ──> PolicyEngine
