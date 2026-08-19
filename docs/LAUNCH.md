@@ -38,7 +38,7 @@ operations features.
 
 ## Demo script (2 minutes)
 
-1. `pip install mandateguard`
+1. `git clone https://github.com/ezequiellich44-cmd/MandateGuard && cd MandateGuard && pip install -e ".[mcp]"`
 2. Set a scope: agent may `pay` to `0xGOOD`, max $100/call, 5 calls/window.
 3. `authorize(pay, 0xGOOD, $80)` → **APPROVED**, ledger entry.
 4. `authorize(pay, 0xSCAM, $50)` → **DENIED**, ledger entry.
@@ -70,18 +70,23 @@ verification is implemented (`tools/verify_payment.py` — Solana RPC + Ethersca
 ## Content assets
 
 - **Landing page**: https://ezequiellich44-cmd.github.io/MandateGuard
-  (LIVE, with Buy/USDT section).
+  (LIVE, Buy page with wallets: https://ezequiellich44-cmd.github.io/MandateGuard/buy.html).
 - **Repo**: https://github.com/ezequiellich44-cmd/MandateGuard
-- **Release**: v1.0.0 with wheel + sdist (assets attached).
+- **Release**: v1.1.0 with wheel + sdist + `.mcpb` bundle (assets attached).
+- **MCP Registry**: `io.github.ezequiellich44-cmd/mandateguard` (v1.0.0, active).
+- **Blog post (SEO)**: https://ezequiellich44-cmd.github.io/MandateGuard/blog/why-agents-shouldnt-authorize-payments.html
 - **Screenshot hook**: the `examples/basic_agent_eval.py` terminal output
   (APPROVED/DENIED rows + "ledger verified: True").
 
 ## Launch checklist
 
-- [x] Landing page live with Buy section + USDT wallets.
+- [x] Landing page live with Buy page + USDT wallets.
 - [x] On-chain payment verification (`tools/verify_payment.py`).
 - [x] Order → payment → license pipeline (`tools/sell.py order/satisfy`).
-- [ ] Publish PyPI (`tools/publish_pypi.sh` — **needs token from user**).
+- [x] Auto payment monitor (`tools/monitor_payments.py`).
+- [x] Published on official MCP Registry (v1.0.0 active, mcpb bundle).
+- [x] Sales runbook (`docs/OPS.md`) — pipeline verified end-to-end.
+- [ ] Publish PyPI (**needs Trusted Publisher setup from user**, 30s).
 - [ ] GitHub Sponsors profile active (FUNDING.yml points to it).
 - [ ] Post to: HN "Show HN", r/LocalLLaMA, r/artificial, Product Hunt.
 - [ ] Publish MCP server on 2+ marketplaces (PulseMCP, skills.sh, mcpmarket).
