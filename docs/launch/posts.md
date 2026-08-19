@@ -23,13 +23,9 @@ How it works:
 - Mandates are Ed25519-signed, time-boxed, single-purpose tokens issued offline by you (not by the agent)
 - Same inputs → same verdict, always. Deterministic, auditable, reproducible
 
-It also ships a tamper-evident audit ledger (SHA-256 chained, like git for every decision) and a full MCP tool surface so Claude/Cursor/harnesses can wire it in 2 minutes:
+It also ships a tamper-evident audit ledger (SHA-256 chained, like git for every decision) and a full MCP tool surface so Claude/Cursor/harnesses can wire it in 2 minutes.
 
-```
-pip install "mandateguard[mcp]" && mandateguard-mcp
-```
-
-Published on the official MCP Registry as `io.github.ezequiellich44-cmd/mandateguard`.
+Published on the official MCP Registry as `io.github.ezequiellich44-cmd/mandateguard` (v1.0.0, active) — MCP-aware clients can discover and install it directly; the repo also has a one-line Python install for `mandateguard-mcp` (stdio server).
 
 Core is MIT (free). Pro license for revocation + persistence: 149 USDT/mo.
 
