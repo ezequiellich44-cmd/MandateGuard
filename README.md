@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.ezequiellich44-cmd/mandateguard -->
+
 # MandateGuard
 
 **Deterministic, auditable payment policy for autonomous AI agents.**

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ezequiellich44-cmd/mandateguard",
+  "description": "Deterministic payment policy guardrail for AI agents - budgets, allowlists, signed mandates.",
+  "repository": {
+    "url": "https://github.com/ezequiellich44-cmd/MandateGuard",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "mandateguard",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
