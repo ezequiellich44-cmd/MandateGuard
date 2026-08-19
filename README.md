@@ -86,13 +86,24 @@ only on approval, so replays are deterministic.
 
 ### MCP server
 
+The package ships an installable MCP server entrypoint:
+
 ```bash
-python -m mandateguard.mcp.server
+pip install "mandateguard[mcp]"
+mandateguard-mcp            # stdio server, ready for Claude/Cursor/harness
+```
+
+For Claude Code:
+
+```bash
+claude mcp add mandateguard -- mandateguard-mcp
 ```
 
 Exposed tools: `set_scope`, `set_global_policy`, `authorize`, `init_ledger`,
 `ledger_status`, `create_mandate_signer`, `issue_mandate`, `check_mandate`,
-`reset_state`.
+`activate_license`, `license_status`, `reset_state`, plus Pro-gated
+`revoke_mandate` and `persist_state` behind a signed Pro license (USDT
+purchase — see the [Buy section](https://ezequiellich44-cmd.github.io/MandateGuard)).
 
 ### Mandates
 

@@ -46,17 +46,42 @@ operations features.
 6. `ledger.verify()` → True. Sign a mandate, revoke its nonce, watch it fail.
 7. Activate Pro license → revocation/persistence unlock.
 
+## Payment & wallets (USDT — Phantom)
+
+All Pro/Enterprise payments land in USDT. Pipeline is fully automated:
+
+| Chain | Wallet | Token |
+| ----- | ------ | ----- |
+| Solana | `3fZSMAyCEMhZwWiynbJDjoYNUT97aiV9BLzoUNroEMAz` | USDT-SPL |
+| Ethereum | `0x4Ed4D0750453C027FA8398067d5af980Bcc9B6eD` | USDT-ERC20 |
+
+Order → verify → license in one flow:
+
+```bash
+python tools/sell.py order --customer Acme --plan pro --seats 5 --months 12
+# customer sends USDT, shares tx hash
+python tools/sell.py satisfy --order MG-0001 --key <priv> \
+    --chain solana --expected-usdt 149 --tx-hash <tx>
+```
+
+Landing page already shows the wallets in the **Buy** section and the on-chain
+verification is implemented (`tools/verify_payment.py` — Solana RPC + Etherscan).
+
 ## Content assets
 
 - **Landing page**: https://ezequiellich44-cmd.github.io/MandateGuard
+  (LIVE, with Buy/USDT section).
 - **Repo**: https://github.com/ezequiellich44-cmd/MandateGuard
-- **Release**: v1.0.0 with wheel + sdist.
+- **Release**: v1.0.0 with wheel + sdist (assets attached).
 - **Screenshot hook**: the `examples/basic_agent_eval.py` terminal output
   (APPROVED/DENIED rows + "ledger verified: True").
 
 ## Launch checklist
 
-- [ ] Publish PyPI (`tools/publish_pypi.sh` with token).
+- [x] Landing page live with Buy section + USDT wallets.
+- [x] On-chain payment verification (`tools/verify_payment.py`).
+- [x] Order → payment → license pipeline (`tools/sell.py order/satisfy`).
+- [ ] Publish PyPI (`tools/publish_pypi.sh` — **needs token from user**).
 - [ ] GitHub Sponsors profile active (FUNDING.yml points to it).
 - [ ] Post to: HN "Show HN", r/LocalLLaMA, r/artificial, Product Hunt.
 - [ ] Publish MCP server on 2+ marketplaces (PulseMCP, skills.sh, mcpmarket).
