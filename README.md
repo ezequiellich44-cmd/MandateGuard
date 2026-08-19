@@ -51,10 +51,19 @@ MCP distribution. That is this repo.
 ## Install
 
 ```bash
-pip install mandateguard
-# with MCP server:
-pip install "mandateguard[mcp]"
+# from this repo (works today; also on the official MCP Registry)
+git clone https://github.com/ezequiellich44-cmd/MandateGuard.git
+cd MandateGuard
+python -m pip install -e .
+
+# or directly from the source:
+python -m pip install "git+https://github.com/ezequiellich44-cmd/MandateGuard.git"
 ```
+
+> Note: `mandateguard` on PyPI is pending Trusted Publisher setup; until then
+> the repo URL is the canonical install path. The MCP bundle is live on the
+> official MCP Registry (`io.github.ezequiellich44-cmd/mandateguard`), so
+> MCP-aware clients can install it without any Python step.
 
 ## Quickstart
 
@@ -91,7 +100,7 @@ only on approval, so replays are deterministic.
 The package ships an installable MCP server entrypoint:
 
 ```bash
-pip install "mandateguard[mcp]"
+python -m pip install -e ".[mcp]"
 mandateguard-mcp            # stdio server, ready for Claude/Cursor/harness
 ```
 
