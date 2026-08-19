@@ -9,9 +9,9 @@
   "version": "1.0.0",
   "packages": [
     {
-      "registryType": "pypi",
-      "identifier": "mandateguard",
-      "version": "1.0.0",
+      "registryType": "mcpb",
+      "identifier": "https://github.com/ezequiellich44-cmd/MandateGuard/releases/download/v1.1.0/mandateguard-1.0.0.mcpb",
+      "fileSha256": "0d55fa7aacd8bb4f1a214ec1da6c456c1329d8004ff2eaf0b1d300697bc9958c",
       "transport": {
         "type": "stdio"
       }

@@ -1,4 +1,4 @@
-name: publish to pypi and mcp registry
+name: publish to mcp registry
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # required for OIDC (PyPI trusted publisher + MCP registry)
+  id-token: write # required for OIDC (MCP registry)
 
 jobs:
   publish:
@@ -18,22 +18,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install build tools
-        run: python -m pip install --upgrade build hatchling
-
       - name: Run tests
         run: python -m pip install -e ".[dev]" && python -m pytest -q
 
-      - name: Build sdist + wheel
-        run: python -m build
-
-      # ---------- PyPI (trusted publisher, no token) ----------
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip-existing: true
-
-      # ---------- MCP Registry (OIDC, no token) ----------
       - name: Install mcp-publisher
         run: |
           curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
@@ -44,7 +31,7 @@ jobs:
       - name: Set version in server.json
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
-          python -c "import json; p='server.json'; d=json.load(open(p)); d['version']=d['packages'][0]['version']='$VERSION'; json.dump(d,open(p,'w'),indent=2)"
+          python -c "import json; p='server.json'; d=json.load(open(p)); d['version']=d['packages'][0]['version']='$VERSION'; d['packages'][0]['identifier']=d['packages'][0]['identifier'].replace('/v1.1.0/','/v'+d['version']+'/'); json.dump(d,open(p,'w'),indent=2)"
 
       - name: Publish server to MCP Registry
         run: ./mcp-publisher publish
