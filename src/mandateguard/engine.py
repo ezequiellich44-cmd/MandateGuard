@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import time
+from typing import Callable
+
 from mandateguard.model import (
     Decision,
     DecisionStatus,
@@ -17,20 +20,27 @@ class PolicyEngine:
     Every rule is a pure function of the request and current state, so the
     same inputs always produce the same verdict. That determinism is the
     security property: an auditor can replay any decision from the ledger.
+
+    The clock is injectable (``clock``) so rate-limit windows are fully
+    deterministic in tests and replay tooling.
     """
 
-    def __init__(self, policy: Policy):
+    def __init__(self, policy: Policy, clock: Callable[[], float] | None = None):
         self.policy = policy
+        self._clock = clock or time.monotonic
         self._spend: dict[str, int] = {}
         self._calls: dict[str, int] = {}
         self._window_start: dict[str, float] = {}
 
     # -- state tracking -----------------------------------------------------
     def _roll_window(self, actor: str, window_seconds: int) -> None:
-        import time
-
-        now = time.monotonic()
-        if self._window_start.get(actor, now) + window_seconds < now:
+        now = self._clock()
+        start = self._window_start.get(actor)
+        if start is None:
+            self._window_start[actor] = now
+            self._calls[actor] = 0
+            self._spend[actor] = 0
+        elif start + window_seconds < now:
             self._window_start[actor] = now
             self._calls[actor] = 0
             self._spend[actor] = 0

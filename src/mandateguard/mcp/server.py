@@ -4,20 +4,26 @@ This is the primary distribution channel: an agent (Claude, Cursor, custom
 harness) adds this MCP server and every payment/tool call is gated by the
 deterministic engine *before* execution. Tools here are intentionally
 callable by the agent itself so the whole envelope is self-guarding.
+
+Pro features (revocation, persistence, multi-tenant) are gated behind a
+signed MandateGuard Pro license.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import uuid
 from typing import Any
 
 from fastmcp import FastMCP
 
 from mandateguard.engine import PolicyEngine
 from mandateguard.ledger.chain import Ledger, LedgerIntegrityError
-from mandateguard.mandate import Mandate, MandateSigner, verify_mandate
+from mandateguard.licensing import InvalidLicense, License, verify_license
+from mandateguard.mandate import Mandate, MandateSigner, now_iso, verify_mandate
 from mandateguard.model import Decision, Intent, Policy, Scope
+from mandateguard.revoke import RevocationRegistry
 
 log = logging.getLogger("mandateguard.mcp")
 
@@ -26,8 +32,16 @@ mcp = FastMCP("mandateguard")
 _policy = Policy()
 _engine = PolicyEngine(_policy)
 _ledger: Ledger | None = None
-_signer: MandateSigner | None = None
-_signer_pubkey: bytes | None = None
+_signers: dict[str, MandateSigner] = {}
+_active_signer: str | None = None
+_revoked: RevocationRegistry | None = None
+_license: License | None = None
+
+
+def _require_license() -> License | None:
+    if _license is None:
+        return None
+    return _license
 
 
 def _record(intent: Intent, decision: Decision) -> None:
@@ -45,6 +59,25 @@ def _record(intent: Intent, decision: Decision) -> None:
             "results": [r.__dict__ for r in decision.results],
         }
     )
+
+
+@mcp.tool
+def activate_license(public_key_hex: str, license_b64: str) -> dict[str, Any]:
+    """Activate a MandateGuard Pro license. Required for Pro features."""
+    global _license
+    try:
+        _license = verify_license(bytes.fromhex(public_key_hex), license_b64)
+    except InvalidLicense as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "plan": _license.plan, "customer": _license.customer, "seats": _license.seats}
+
+
+@mcp.tool
+def license_status() -> dict[str, Any]:
+    """Report current license state."""
+    if _license is None:
+        return {"ok": True, "plan": "community", "features": []}
+    return {"ok": True, "plan": _license.plan, "customer": _license.customer, "seats": _license.seats}
 
 
 @mcp.tool
@@ -100,20 +133,16 @@ def authorize(
     amount: int = 0,
     currency: str = "usd",
     actor: str = "agent",
+    mandate_nonce: str | None = None,
 ) -> dict[str, Any]:
     """Evaluate a tool call against policy. This is the ONLY gate an agent must pass before executing a paid action."""
     intent = Intent(tool=tool, destination=destination, amount=amount, currency=currency, actor=actor)
-    mandate_ok = _satisfies_mandate(intent, actor)
+    mandate_ok = True
+    if _revoked is not None and mandate_nonce:
+        mandate_ok = not _revoked.is_revoked(mandate_nonce)
     decision = _engine.authorize(intent, mandate_ok=mandate_ok)
     _record(intent, decision)
     return decision.to_dict()
-
-
-def _satisfies_mandate(intent: Intent, actor: str) -> bool:
-    if _signer_pubkey is None:
-        return True
-    # a real deployment would resolve the stored mandate per actor here
-    return True
 
 
 @mcp.tool
@@ -143,10 +172,12 @@ def ledger_status() -> dict[str, Any]:
 @mcp.tool
 def create_mandate_signer() -> dict[str, Any]:
     """Generate a fresh Ed25519 keypair for issuing agent mandates."""
-    global _signer, _signer_pubkey
-    _signer = MandateSigner()
-    _signer_pubkey = _signer.public_key_bytes
-    return {"ok": True, "public_key": _signer_pubkey.hex()}
+    signer = MandateSigner()
+    pub = signer.public_key_bytes.hex()
+    _signers[pub] = signer
+    global _active_signer
+    _active_signer = pub
+    return {"ok": True, "public_key": pub}
 
 
 @mcp.tool
@@ -158,13 +189,13 @@ def issue_mandate(
     destinations: list[str] | None = None,
     currency: str = "usd",
     nonce: str = "auto",
+    signer_key: str | None = None,
 ) -> dict[str, Any]:
     """Issue a signed, time-boxed mandate for an actor."""
-    if _signer is None:
+    key = signer_key or _active_signer
+    if key is None or key not in _signers:
         return {"ok": False, "error": "no signer; call create_mandate_signer first"}
-    import uuid
-    from mandateguard.mandate import now_iso
-
+    signer = _signers[key]
     mandate = Mandate(
         actor=actor,
         max_amount=max_amount,
@@ -174,18 +205,16 @@ def issue_mandate(
         not_before=now_iso(),
         not_after=not_after,
         nonce=nonce if nonce != "auto" else uuid.uuid4().hex[:16],
-        issuer=_signer_pubkey.hex(),
+        issuer=key,
     )
-    signature = _signer.sign(mandate)
+    signature = signer.sign(mandate)
     return {"ok": True, "mandate": mandate.to_dict(), "signature": signature}
 
 
 @mcp.tool
 def check_mandate(public_key_hex: str, mandate_json: str, signature_hex: str) -> dict[str, Any]:
     """Verify a mandate's signature and validity window."""
-    import json as _json
-
-    data = _json.loads(mandate_json)
+    data = json.loads(mandate_json)
     mandate = Mandate(
         actor=data["actor"],
         max_amount=data["max_amount"],
@@ -199,6 +228,36 @@ def check_mandate(public_key_hex: str, mandate_json: str, signature_hex: str) ->
     )
     valid = verify_mandate(bytes.fromhex(public_key_hex), mandate, signature_hex)
     return {"ok": valid, "expired": mandate.is_expired()}
+
+
+@mcp.tool
+def revoke_mandate(nonce: str) -> dict[str, Any]:
+    """Revoke a mandate by nonce. Pro feature."""
+    lic = _require_license()
+    if lic is None:
+        return {"ok": False, "error": "no license activated; run activate_license first"}
+    if not lic.can("revocation"):
+        return {"ok": False, "error": "revocation requires MandateGuard Pro"}
+    global _revoked
+    if _revoked is None:
+        _revoked = RevocationRegistry("revoked.json")
+    _revoked.revoke(nonce)
+    return {"ok": True, "nonce": nonce}
+
+
+@mcp.tool
+def persist_state(path: str) -> dict[str, Any]:
+    """Persist current policy and engine state to JSON. Pro feature."""
+    lic = _require_license()
+    if lic is None:
+        return {"ok": False, "error": "no license activated; run activate_license first"}
+    if not lic.can("persistence"):
+        return {"ok": False, "error": "persistence requires MandateGuard Pro"}
+    from mandateguard.store import EngineStateStore, PolicyStore
+
+    PolicyStore(f"{path}/policy.json").save(_policy)
+    EngineStateStore(f"{path}/state.json").save_from(_engine)
+    return {"ok": True, "path": path}
 
 
 @mcp.tool

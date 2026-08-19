@@ -36,6 +36,28 @@ class Policy:
     denylist: tuple[str, ...] = ()
     require_mandate: bool = False
 
+    def to_dict(self) -> dict:
+        return {
+            "scopes": {k: v.__dict__ for k, v in self.scopes.items()},
+            "global_max_amount": self.global_max_amount,
+            "allowlist": list(self.allowlist),
+            "denylist": list(self.denylist),
+            "require_mandate": self.require_mandate,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Policy":
+        return cls(
+            scopes={
+                k: Scope(**{kk: tuple(vv) if isinstance(vv, list) else vv for kk, vv in v.items()})
+                for k, v in data.get("scopes", {}).items()
+            },
+            global_max_amount=data.get("global_max_amount", 0),
+            allowlist=tuple(data.get("allowlist", [])),
+            denylist=tuple(data.get("denylist", [])),
+            require_mandate=data.get("require_mandate", False),
+        )
+
 
 @dataclass(frozen=True)
 class Intent:
