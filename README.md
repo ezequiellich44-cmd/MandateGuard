@@ -101,6 +101,11 @@ For Claude Code:
 claude mcp add mandateguard -- mandateguard-mcp
 ```
 
+MandateGuard is **published on the official MCP Registry**:
+`io.github.ezequiellich44-cmd/mandateguard` (version 1.0.0, `mcpb` bundle,
+active). MCP-aware clients that sync the registry can discover and install it
+directly. The bundle ships the same stdio server and 14-tool surface.
+
 Exposed tools: `set_scope`, `set_global_policy`, `authorize`, `init_ledger`,
 `ledger_status`, `create_mandate_signer`, `issue_mandate`, `check_mandate`,
 `activate_license`, `license_status`, `reset_state`, plus Pro-gated
