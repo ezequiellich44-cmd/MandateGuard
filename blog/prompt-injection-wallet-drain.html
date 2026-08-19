@@ -1,0 +1,63 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How to Stop Prompt Injection From Draining Your AI Agent's Wallet (2026 Guide) — MandateGuard</title><meta name="description" content="Prompt injection attacks target the one decision that loses money: the authorization. Here's how budgets, allowlists, rate limits, and signed mandates stop an agent from paying an attacker — with a deterministic, auditable policy layer."><meta name="keywords" content="prompt injection wallet drain, agent payment security, LLM08 excessive agency, AI agent wallet protection, prevent agent losing money, deterministic policy engine, MCP guardrail"><meta property="og:title" content="How to Stop Prompt Injection From Draining Your AI Agent's Wallet"><meta property="og:description" content="A 2026 practical guide to agent payment security: deterministic policy + signed mandates, no LLM in the decision path."><meta property="og:url" content="https://ezequiellich44-cmd.github.io/MandateGuard/blog/prompt-injection-wallet-drain.html"><style>  :root { --bg:#0b0f14; --card:#12181f; --line:#1f2933; --text:#e5e7eb; --muted:#9aa4b2; --accent:#22d3ee; --accent2:#34d399; }  * { box-sizing:border-box; margin:0; padding:0; }  body { background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; line-height:1.7; }  .wrap { max-width:820px; margin:0 auto; padding:0 24px; }  header { padding:26px 0; border-bottom:1px solid var(--line); }  .logo { font-weight:700; font-size:19px; }  .logo span { color:var(--accent); }  nav a { color:var(--muted); margin-left:20px; text-decoration:none; font-size:14px; }  article { padding:56px 0 20px; }  .kicker { color:var(--accent); font-size:13px; text-transform:uppercase; letter-spacing:.08em; font-weight:600; }  h1 { font-size:36px; line-height:1.2; font-weight:800; margin:14px 0 18px; }  .meta { color:var(--muted); font-size:13px; margin-bottom:36px; }  h2 { font-size:24px; font-weight:800; margin:40px 0 14px; }  h3 { font-size:18px; font-weight:700; margin:26px 0 10px; }  p { color:var(--muted); margin-bottom:18px; }  strong { color:var(--text); }  code, pre { background:#0d1217; border:1px solid var(--line); border-radius:6px; font-family:"JetBrains Mono",Consolas,monospace; font-size:13px; }  code.inline { padding:2px 6px; }  pre { padding:16px; overflow-x:auto; margin:20px 0; color:var(--text); }  .callout { background:var(--card); border-left:3px solid var(--accent); padding:18px 20px; border-radius:8px; margin:24px 0; }  .callout p { margin:0; }  ul, ol { margin:0 0 18px 22px; }  li { color:var(--muted); margin-bottom:8px; }  .cta { text-align:center; padding:48px 0 20px; }  .btn { display:inline-block; background:var(--accent); color:#06121a; font-weight:700; padding:13px 26px; border-radius:8px; text-decoration:none; margin:6px; }  .btn.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }  footer { border-top:1px solid var(--line); padding:28px 0; color:var(--muted); font-size:13px; text-align:center; margin-top:48px; }</style></head><body><header>  <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;">    <div class="logo">Mandate<span>Guard</span></div>    <nav>      <a href="/MandateGuard/">Home</a>      <a href="/MandateGuard/blog/why-agents-shouldnt-authorize-payments.html">Why agents can't self-authorize</a>      <a href="https://github.com/ezequiellich44-cmd/MandateGuard">GitHub</a>    </nav>  </div></header><article><div class="wrap">  <div class="kicker">Practical guide · 2026</div>  <h1>How to Stop Prompt Injection From Draining Your AI Agent's Wallet</h1>  <div class="meta">MandateGuard · 2026 · <a style="color:var(--accent)" href="https://ezequiellich44-cmd.github.io/MandateGuard">Landing</a></div>
+
+  <p>Prompt injection doesn't steal your API keys — it steals <strong>one decision</strong>: the decision to authorize a payment. An attacker embeds "refund this customer to this address" in an email, a webpage, a tool result. The agent reads it, and if the authorization check is part of the same probabilistic context, the money moves. This guide is the practical answer to that attack class.</p>
+
+  <h2>Why the authorization is the target</h2>
+  <p>Your agent can't be made immune to reading untrusted content. What you can change is what happens <em>after</em> it reads it. If the final "approve this transfer" step is:</p>
+  <ul>
+    <li><strong>Deterministic</strong> — a pure function of (actor, tool, amount, destination, policy) with no model sampling</li>
+    <li><strong>Outside the prompt</strong> — the injected text has no path into the decision inputs</li>
+    <li><strong>Scoped</strong> — the agent can only spend within an issuer-signed mandate</li>
+  </ul>
+  <p>...then the injection has nothing to push against. The best prompt in the world cannot exceed the allowlist.</p>
+
+  <h2>Layer 1: destination allowlists</h2>
+  <p>The cheapest win. The agent can only send to addresses/accounts that were pre-approved:</p>
+  <pre>policy = Policy(
+    scopes={"wallet-agent": Scope(
+        tools=("pay",),
+        destinations=("0xGOOD", "0xTRUSTED-VENDOR"),
+        max_amount=1000, currency="usd",
+    )},
+    allowlist=("0xGOOD", "0xTRUSTED-VENDOR"),
+)
+engine = PolicyEngine(policy)
+engine.authorize(Intent(tool="pay", destination="0xATTACKER", amount=50,
+                        actor="wallet-agent"))
+# -> DENIED (destination not allowed)</pre>
+  <p>No matter what the attacker's email says, the destination check happens in code, not in context.</p>
+
+  <h2>Layer 2: per-call and per-window budgets</h2>
+  <p>Even for allowed destinations, cap the blast radius. Per-call max stops a single "refund everything" prompt; per-window limits stop a burst of small transfers that sum to a drain:</p>
+  <pre>Scope(tools=("pay",), destinations=("0xGOOD",), max_amount=1000,
+      currency="usd", max_calls_per_window=5)</pre>
+
+  <h2>Layer 3: signed mandates the agent cannot mint</h2>
+  <p>The agent should not hold the authority to authorize its own payments. Mandates are <strong>Ed25519-signed offline</strong>, nonce-bound, time-boxed tokens you issue by hand (or via your ops tooling):</p>
+  <pre>from mandateguard import Mandate, MandateSigner, verify_mandate
+issuer = MandateSigner()                # private key stays offline
+m = Mandate(actor="wallet-agent", max_amount=500, currency="usd",
+            tools=("pay",), destinations=("0xGOOD",),
+            not_before="2026-01-01T00:00:00+00:00",
+            not_after="2099-01-01T00:00:00+00:00",
+            nonce="abc", issuer="you")
+token = issuer.sign(m)
+assert verify_mandate(token)             # tamper-proof</pre>
+
+  <h2>Layer 4: tamper-evident audit</h2>
+  <p>When an incident happens — or an auditor asks — you need to prove what was approved, when, and under which policy. Every decision lands in a <strong>SHA-256-chained, append-only ledger</strong>; any edit, reorder, or deletion is detected by a linear scan:</p>
+  <pre>ledger.append(decision)
+assert ledger.verify()   # True if untouched</pre>
+
+  <h2>Putting it together</h2>
+  <p>MandateGuard packages all four layers as a library plus an <strong>MCP server</strong> (14 tools: scopes, authorize, mandates, ledger) so Claude, Cursor, or any harness mounts the guardrail in minutes. It's published on the official MCP Registry as <code class="inline">io.github.ezequiellich44-cmd/mandateguard</code>. The core engine is MIT.</p>
+
+  <div class="callout"><p><strong>Bottom line:</strong> you cannot prompt your way out of prompt injection. You engineer your way out — by moving the authorization decision out of the model and into deterministic policy.</p></div>
+
+  <div class="cta">
+    <h2 style="font-size:26px;margin-bottom:8px;">Ship your agent. Keep your wallet.</h2>
+    <p style="margin-bottom:24px;">Core is free (MIT). Pro — revocation, persistence, RBAC, webhooks — is 149 USDT/mo, paid in USDT via Phantom (Solana or Ethereum).</p>
+    <a class="btn" href="https://ezequiellich44-cmd.github.io/MandateGuard/#buy">Buy Pro — 149 USDT/mo</a>
+    <a class="btn ghost" href="https://github.com/ezequiellich44-cmd/MandateGuard">Star on GitHub</a>
+  </div>
+</div></article><footer><div class="wrap">MandateGuard v1.0.0 · MIT core · Pay in USDT (Solana / Ethereum) · © 2026 Eze Lech</div></footer></body></html>
