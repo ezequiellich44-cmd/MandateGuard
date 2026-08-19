@@ -2,6 +2,10 @@
 
 # MandateGuard
 
+[![CI](https://github.com/ezequiellich44-cmd/MandateGuard/actions/workflows/ci.yml/badge.svg)](https://github.com/ezequiellich44-cmd/MandateGuard/actions)
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-active-22d3ee)](https://registry.modelcontextprotocol.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-34d399.svg)](https://opensource.org/licenses/MIT)
+
 **Deterministic, auditable payment policy for autonomous AI agents.**
 
 MandateGuard is a pre-action enforcement layer that sits between an agent and
