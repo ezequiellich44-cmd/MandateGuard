@@ -30,4 +30,10 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
-<url><loc>https://ezequiellich44-cmd.github.io/MandateGuard/blog/ai-agent-loss.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url></urlset>
+<url><loc>https://ezequiellich44-cmd.github.io/MandateGuard/blog/ai-agent-loss.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url>
+    <loc>https://ezequiellich44-cmd.github.io/MandateGuard/blog/mcp-payment-policy-standard.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>
