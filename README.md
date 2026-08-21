@@ -167,7 +167,7 @@ python -m pytest -q
 
 Fully automated, self-service:
 
-1. Open [buy.html](https://ezequiellich44-cmd.github.io/MandateGuard/buy.html), pick a plan (Pro monthly 149 USDT / annual 1,430 USDT) and chain (Solana or Ethereum).
+1. Open [buy.html](https://ezequiellich44-cmd.github.io/MandateGuard/buy.html), pick a plan (Pro monthly **99 USDT launch price** (was 149) / annual 1,430 USDT) and chain (Solana or Ethereum).
 2. Send the exact USDT amount to the displayed address (QR provided).
 3. Click **I've Paid** — a pre-filled GitHub issue opens; paste your transaction hash and submit.
 4. A bot verifies your payment on-chain and replies with your signed Ed25519 license within minutes. No humans in the loop.
