@@ -86,17 +86,20 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           REASON=$(python -c "import json;print(json.load(open('$RUNNER_TEMP/verdict.json')).get('reason','verification pending'))")
-          gh issue comment "$ISSUE" --body "⏳ **Payment not detected yet.**
-
-Reason: \`$REASON\`
-
-Checklist:
-- TX confirmed? Solana needs ~1 slot, Ethereum ~12+ confirmations.
-- Correct chain and token? USDT-SPL (Solana) or USDT-ERC20 (Ethereum) only.
-- Exact amount sent? Partial payments cannot be matched.
-- Right wallet? See https://ezequiellich44-cmd.github.io/MandateGuard/buy.html
-
-Edit this issue with the correct TX hash and the bot re-runs automatically."
+          {
+            echo "⏳ **Payment not detected yet.**"
+            echo ""
+            echo "Reason: \`$REASON\`"
+            echo ""
+            echo "Checklist:"
+            echo "- TX confirmed? Solana needs ~1 slot, Ethereum ~12+ confirmations."
+            echo "- Correct chain and token? USDT-SPL (Solana) or USDT-ERC20 (Ethereum) only."
+            echo "- Exact amount sent? Partial payments cannot be matched."
+            echo "- Right wallet? See https://ezequiellich44-cmd.github.io/MandateGuard/buy.html"
+            echo ""
+            echo "Edit this issue with the correct TX hash and the bot re-runs automatically."
+          } > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
 
       - name: Processing error
         if: steps.sale.outputs.exit_code == '2'
@@ -105,4 +108,8 @@ Edit this issue with the correct TX hash and the bot re-runs automatically."
           ISSUE: ${{ github.event.issue.number }}
         run: |
           REASON=$(python -c "import json;print(json.load(open('$RUNNER_TEMP/verdict.json')).get('reason','internal error'))")
-          gh issue comment "$ISSUE" --body "⚠️ **Verification error:** \`$REASON\`. A human will review shortly. Email ezequiellich44@gmail.com with your order ID for priority handling."
+          {
+            echo "⚠️ **Verification error:** \`$REASON\`. A human will review shortly."
+            echo "Email ezequiellich44@gmail.com with your order ID for priority handling."
+          } > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
