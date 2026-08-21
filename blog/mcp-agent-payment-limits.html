@@ -1,0 +1,140 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP Agent Payment Limits: How to Enforce Spending Caps on Model Context Protocol Servers (2026)</title>
+<meta name="description" content="How to enforce spending limits on MCP servers that handle payments. Budget caps, allowlists, rate limits, and Ed25519 mandates for Model Context Protocol agents.">
+<meta property="og:title" content="MCP Agent Payment Limits: Enforcing Spending Caps">
+<meta property="og:description" content="Enforce deterministic spending limits on MCP payment servers. No LLM in the decision path. Tamper-evident audit ledger.">
+<style>:root{--bg:#0b0f14;--card:#12181f;--line:#1f2933;--text:#e5e7eb;--muted:#9aa4b2;--accent:#22d3ee;--accent2:#34d399}*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;line-height:1.8}.wrap{max-width:800px;margin:0 auto;padding:0 24px}header{padding:32px 0;border-bottom:2px solid var(--accent)}.logo{font-weight:800;font-size:24px}.logo span{color:var(--accent)}.nav a{color:var(--muted);margin-left:16px;text-decoration:none;font-size:14px}.nav a:hover{color:var(--text)}article{padding:48px 0}h1{font-size:28px;font-weight:800;margin-bottom:16px}h2{font-size:22px;font-weight:700;color:var(--accent);margin:40px 0 16px;padding-bottom:8px;border-bottom:2px solid var(--line)}p{margin-bottom:16px;color:var(--muted)}strong{color:var(--text)}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}ul,ol{margin:12px 0 16px 24px;color:var(--muted)}li{margin-bottom:8px}code{background:var(--card);border:1px solid var(--line);padding:2px 6px;border-radius:4px;font-size:14px}pre{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;overflow-x:auto;margin:16px 0}pre code{background:none;border:none;padding:0}.callout{background:#0a2f23;border:1px solid var(--accent2);border-radius:12px;padding:16px 20px;margin:24px 0;color:var(--accent2)}.cta{background:linear-gradient(135deg,var(--accent),#0ea5b7);color:#04222a;font-weight:800;border:none;border-radius:10px;padding:14px 24px;font-size:16px;cursor:pointer;text-decoration:none;display:inline-block;margin:8px 0}.cta:hover{filter:brightness(1.1);text-decoration:none}footer{border-top:1px solid var(--line);margin-top:48px;padding:28px 0;color:var(--muted);font-size:13px;text-align:center}footer a{color:var(--muted)}</style></head><body>
+<header><div class="wrap" style="display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;gap:12px"><div class="logo">Mandate<span>Guard</span></div><nav class="nav"><a href="../">Home</a><a href="../demo.html">Demo</a><a href="../buy.html">Buy</a><a href="https://github.com/ezequiellich44-cmd/MandateGuard">GitHub</a></nav></div></header>
+<article><div class="wrap">
+<h1>MCP Agent Payment Limits: How to Enforce Spending Caps on Model Context Protocol Servers</h1>
+<p><em>Published: August 2026 · 10 min read · By Eze Lech</em></p>
+
+<p>If your AI agent uses Model Context Protocol (MCP) to interact with payment tools — Stripe, Solana wallets, Ethereum contracts, banking APIs — you need spending limits that actually work. Not suggestions. Not prompt-level guardrails. <strong>Enforced, deterministic limits that the agent cannot bypass.</strong></p>
+
+<p>This guide shows you exactly how to add MCP-level payment limits that survive prompt injection, provide tamper-evident audit trails, and satisfy compliance requirements.</p>
+
+<h2>The MCP Payment Problem</h2>
+
+<p>MCP servers give AI agents access to external tools: read files, query databases, execute transactions. When a payment tool is exposed via MCP, the agent can call it like any other tool. The problem: most MCP configurations have <strong>no spending limits</strong> between the agent and the payment server.</p>
+
+<p>The typical flow:</p>
+
+<pre><code>Agent decides → MCP client sends tool call → Payment server executes → Money moves</code></pre>
+
+<p>There's no checkpoint. No budget check. No allowlist validation. The agent's decision is final.</p>
+
+<h2>The Architecture: Pre-Action Enforcement Layer</h2>
+
+<p>The fix is straightforward: insert a <strong>deterministic policy engine</strong> between the agent and every money-moving MCP tool. Every tool call passes through the engine first. The engine checks budgets, allowlists, denylists, rate limits, and signed mandates — then approves or denies.</p>
+
+<pre><code>Agent decides → MandateGuard authorize() → [budget check] → [allowlist] → [rate limit] → [mandate verify] → Payment server executes OR denied</code></pre>
+
+<p>Zero LLM calls in the authorization path. Same inputs always produce the same output.</p>
+
+<h2>Implementation: Three Approaches</h2>
+
+<h3>1. MCP-Level Interception (Recommended)</h3>
+<p>Add MandateGuard as a separate MCP server. Configure your MCP client to route payment calls through MandateGuard first:</p>
+
+<pre><code>{
+  "mcpServers": {
+    "mandateguard": {
+      "command": "python",
+      "args": ["-m", "mandateguard.mcp.server"],
+      "env": {
+        "MANDATEGUARD_POLICY": "./policy.json"
+      }
+    },
+    "payment-tool": {
+      "command": "your-payment-server",
+      "env": {}
+    }
+  }
+}</code></pre>
+
+<p>MandateGuard's <code>authorize</code> tool is called before every payment tool call. The agent must first get authorization, then execute. No way around it.</p>
+
+<h3>2. Budget Configuration</h3>
+<p>Define spending limits in a policy file:</p>
+
+<pre><code>{
+  "per_call_cap": 100.0,
+  "daily_cap": 1000.0,
+  "monthly_cap": 10000.0,
+  "allowlist": [
+    "0xAbc123...",
+    "SolanaWalletAddress..."
+  ],
+  "denylist": [],
+  "rate_limit": {
+    "max_calls": 10,
+    "window_seconds": 3600
+  },
+  "human_approval_threshold": 5000.0
+}</code></pre>
+
+<h3>3. Signed Mandates for Delegated Authority</h3>
+<p>For scenarios where the agent needs specific permission to execute a transaction, use cryptographically signed mandates:</p>
+
+<pre><code># Human signs a mandate allowing exactly this transaction
+mandate = engine.issue_mandate(
+    tool="transfer",
+    destination="0xAbc123...",
+    max_amount=500.0,
+    not_after="2026-09-01T00:00:00Z"
+)
+# Agent presents mandate when calling payment tool
+# Engine verifies signature, checks parameters, approves/denies</code></pre>
+
+<h2>What Gets Logged (Tamper-Evident)</h2>
+
+<p>Every authorization decision — approved or denied — is appended to a SHA-256 hash chain. Each entry includes:</p>
+
+<ul>
+<li>Tool name and parameters</li>
+<li>Actor (agent identifier)</li>
+<li>Timestamp</li>
+<li>Decision (approved/denied + reason)</li>
+<li>Previous entry hash (chain integrity)</li>
+<li>Current entry hash</li>
+</ul>
+
+<p>Altering any record breaks the chain. This is your audit trail for compliance and incident response.</p>
+
+<div class="callout">
+<strong>Key insight for MCP builders:</strong> If you're building MCP servers that expose payment capabilities, consider integrating a policy engine at the server level — not just at the client. Server-level enforcement protects against compromised MCP clients too.
+</div>
+
+<h2>Why This Matters for MCP Adoption</h2>
+
+<p>Enterprise adoption of MCP for payment tools is blocked by one question: <strong>"How do we prevent the agent from spending unlimited money?"</strong></p>
+
+<p>The answer is deterministic policy enforcement. Prompt-based guardrails don't satisfy auditors. "We told the LLM not to spend too much" isn't a control — it's a hope.</p>
+
+<p>MCP payment servers that ship with built-in spending limits will win enterprise contracts. Those that don't will remain in the "experimental" category.</p>
+
+<h2>Getting Started</h2>
+
+<ol>
+<li><strong>Install MandateGuard:</strong> <code>pip install git+https://github.com/ezequiellich44-cmd/MandateGuard.git</code></li>
+<li><strong>Define your policy:</strong> Set per-call caps, daily limits, and allowlists</li>
+<li><strong>Add to your MCP config:</strong> Insert as a pre-action layer</li>
+<li><strong>Verify:</strong> Run <code>mandateguard authorize --tool pay --destination 0x... --amount 50</code></li>
+</ol>
+
+<p>MandateGuard is open-source (MIT core) and published on the official MCP Registry. Pro features (revocation, persistence, RBAC, multi-tenant) are <a href="../buy.html">available for 99 USDT/mo</a>.</p>
+
+<a class="cta" href="../buy.html">Get MandateGuard Pro →</a>
+<a class="cta" href="../demo.html" style="background:transparent;color:var(--accent);border:2px solid var(--accent)">Try the Demo</a>
+
+<h2>Related Posts</h2>
+<ul>
+<li><a href="ai-agent-spending-limits.html">AI Agent Spending Limits: The OWASP LLM08 Compliance Guide</a></li>
+<li><a href="why-agents-shouldnt-authorize-payments.html">Why Agents Shouldn't Authorize Payments Directly</a></li>
+<li><a href="mcp-payment-policy-standard.html">MCP Payment Policy Standard</a></li>
+<li><a href="mcp-tool-security-checklist.html">MCP Tool Security Checklist</a></li>
+</ul>
+
+</div></article>
+<footer><div class="wrap">MandateGuard v1.1 · MIT core · © 2026 Eze Lech</div></footer>
+</body></html>
