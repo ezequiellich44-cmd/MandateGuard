@@ -1,35 +1,45 @@
 # Security Policy
 
-## Supported versions
+## Reporting Vulnerabilities
 
-| Version | Supported |
-| ------- | --------- |
-| 1.0.x   | ✅ |
-| < 1.0   | ❌ |
+Report security vulnerabilities via GitHub Issues (private if possible).
 
-## Reporting a vulnerability
+## Threat Model
 
-**Please do not open a public issue for security bugs.** Email
-`ezequiellich44@gmail.com` with:
+MandateGuard is a **deterministic pre-action enforcement engine** for autonomous AI agents.
 
-- Affected version(s)
-- Steps to reproduce
-- Impact assessment
+**In scope:**
+- Prompt injection leading to unauthorized payments
+- Excessive agency (agent spending beyond limits)
+- Supply chain attacks on MCP tool dependencies
+- Replay attacks on signed mandates
 
-You will receive an acknowledgment within 48 hours and a fix target date
-within 7 days. We credit reporters (unless they prefer anonymity).
+**Out of scope:**
+- Compromise of the host system (OS-level attacks)
+- Compromise of the signing key itself (key management is the user's responsibility)
+- Attacks that bypass the MCP server entirely (direct tool access)
 
-## Scope
+## Key Management
 
-The deterministic engine (`engine.py`), mandate verification (`mandate.py`),
-license verification (`licensing.py`), and ledger (`ledger/chain.py`) are the
-security-critical surface. Vulnerabilities in the MCP transport layer must be
-reported too but are generally mitigated by deploying behind authenticated
-MCP auth.
+- Signing keys (`LICENSE_PRIVATE_KEY`) loaded from environment variables
+- Never hardcode keys in source code
+- Recommended: use OS keychain or vault for production
+- Key rotation: generate new keypair, update environment, revoke old key
 
-## Threat model
+## Failure Modes
 
-See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md). In short: MandateGuard
-limits the blast radius of a compromised agent; it does not make the model
-trustworthy, and key management / transport security are deployment
-responsibilities.
+- **Fail-closed:** If the policy engine is unreachable or errors, payment calls are denied
+- **No silent failures:** All authorization failures are logged and returned as deny
+- **Rate limiter:** Fails closed (deny on error)
+
+## Audit Trail
+
+- SHA-256 hash chain provides local tamper-evidence
+- Does not prove tail deletion or full-ledger replacement without external checkpoint
+- For high-assurance audit: integrate with external timestamping service or append-only log
+
+## Policy Mutation
+
+- Policy files are read-only at startup
+- Hot-reload requires signed policy update (Ed25519)
+- Rollback: keep previous policy hash, revert to last known-good
