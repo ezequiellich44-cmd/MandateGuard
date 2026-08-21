@@ -43,3 +43,8 @@ MandateGuard is a **deterministic pre-action enforcement engine** for autonomous
 - Policy files are read-only at startup
 - Hot-reload requires signed policy update (Ed25519)
 - Rollback: keep previous policy hash, revert to last known-good
+
+
+## LedgerBudgetStore
+
+Budget and rate-limit state is reconstructed from the append-only ledger chain at boot. This prevents the restart-reset vulnerability (issue #3).
