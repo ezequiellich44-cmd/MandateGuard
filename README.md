@@ -163,6 +163,19 @@ Agent intent ──> authorize(intent) ──> PolicyEngine
 python -m pytest -q
 ```
 
+## Buying MandateGuard Pro
+
+Fully automated, self-service:
+
+1. Open [buy.html](https://ezequiellich44-cmd.github.io/MandateGuard/buy.html), pick a plan (Pro monthly 149 USDT / annual 1,430 USDT) and chain (Solana or Ethereum).
+2. Send the exact USDT amount to the displayed address (QR provided).
+3. Click **I've Paid** — a pre-filled GitHub issue opens; paste your transaction hash and submit.
+4. A bot verifies your payment on-chain and replies with your signed Ed25519 license within minutes. No humans in the loop.
+
+Free 14-day Pro trial: open a [trial issue](https://github.com/ezequiellich44-cmd/MandateGuard/issues/new?template=trial-request.md&title=%5BTRIAL%5D%20Trial%20request) and the bot delivers a license automatically.
+
+Enterprise / custom terms: ezequiellich44@gmail.com
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT core. Pro features require a signed license — see [Buying MandateGuard Pro](#buying-mandateguard-pro).
