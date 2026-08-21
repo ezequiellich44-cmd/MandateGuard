@@ -49,7 +49,7 @@ ETH_RPC_CANDIDATES = [
 ]
 
 PLAN_DURATIONS = {
-    "pro-monthly": (149.0, 31),
+    "pro-monthly": (99.0, 31),
     "pro-annual": (1430.0, 366),
 }
 PLAN_SEATS = {"pro-monthly": 5, "pro-annual": 25}
