@@ -36,10 +36,13 @@ jobs:
           LICENSE_PRIVATE_KEY: ${{ secrets.LICENSE_PRIVATE_KEY }}
           LICENSE_FILE: ${{ runner.temp }}/license.txt
           GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set +e
-          python tools/sales_process.py | tee "$RUNNER_TEMP/verdict.json"
+          python tools/sales_process.py > "$RUNNER_TEMP/verdict.json"
           code=$?
+          cat "$RUNNER_TEMP/verdict.json"
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
 
