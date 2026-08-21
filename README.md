@@ -179,3 +179,13 @@ Enterprise / custom terms: ezequiellich44@gmail.com
 ## License
 
 MIT core. Pro features require a signed license — see [Buying MandateGuard Pro](#buying-mandateguard-pro).
+
+## Security Model
+
+**Fail-closed:** If the policy engine is unreachable or errors, payment calls are denied. No silent failures.
+
+**Key storage:** Signing keys loaded from environment variables or file, never hardcoded. Recommended: use OS keychain or vault for production.
+
+**Policy mutation:** Policy files are read-only at startup. Hot-reload requires signed policy update (Ed25519). Rollback: keep previous policy hash, revert to last known-good.
+
+**Recovery:** If authorization fails, the agent receives a denial with reason. The agent can retry with different parameters or escalate to human approval.
