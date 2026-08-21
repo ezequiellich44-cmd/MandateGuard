@@ -30,6 +30,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
@@ -99,20 +100,31 @@ def solana_verify_tx(tx_sig: str, expected_usdt: float) -> dict:
             "error": None if ok else f"amount {delta} < expected {expected_usdt}"}
 
 
-def solana_scan_recent(expected_usdt: float, limit: int = 20) -> dict:
-    sigs = _post_json(SOLANA_RPC, {
-        "jsonrpc": "2.0", "id": 1,
-        "method": "getSignaturesForAddress",
-        "params": [SOLANA_WALLET, {"limit": limit}],
-    })
-    for entry in (sigs.get("result") or []):
-        sig = entry.get("signature")
-        if not sig or entry.get("err"):
-            continue
-        checked = solana_verify_tx(sig, expected_usdt)
-        if checked.get("ok"):
-            return {"ok": True, "tx_hash": sig, "amount_usdt": checked["amount_usdt"]}
-    return {"ok": False, "error": "no recent inbound USDT-SPL transfer meets the expected amount"}
+REPLAY_SEARCH_URL = (
+    "https://api.github.com/search/issues?q={query}"
+)
+
+
+def tx_already_claimed(repo: str, tx_hash: str, current_issue: int, token: str) -> bool:
+    """True if this exact tx hash appears in any other sales issue (replay guard)."""
+    try:
+        q = urllib.parse.quote(f'repo:{repo} "{tx_hash}"')
+        req = urllib.request.Request(
+            REPLAY_SEARCH_URL.format(query=q),
+            headers={
+                "User-Agent": "mandateguard-sales/1.0",
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {token}",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode())
+        for item in data.get("items", []):
+            if item.get("number") != current_issue:
+                return True
+    except Exception:
+        pass
+    return False
 
 
 # ---------------- Ethereum ----------------
@@ -149,22 +161,6 @@ def eth_verify_tx(tx_hash: str, expected_usdt: float) -> dict:
     ok = total >= expected_usdt * 0.999
     return {"ok": ok, "amount_usdt": round(total, 6), "tx_hash": tx_hash,
             "error": None if ok else f"tx moves {total} USDT to vendor wallet, expected {expected_usdt}"}
-
-
-def eth_scan_recent(expected_usdt: float, blocks_back: int = 30000) -> dict:
-    head_hex = _eth_rpc("eth_blockNumber", [])
-    head = int(head_hex, 16)
-    from_block = hex(max(0, head - blocks_back))
-    logs = _eth_rpc("eth_getLogs", [{
-        "fromBlock": from_block, "toBlock": "latest",
-        "address": USDT_ETH_CONTRACT,
-        "topics": [TRANSFER_TOPIC, None, "0x" + "0" * 24 + ETH_WALLET[2:].lower()],
-    }])
-    for lg in logs:
-        value = int(lg.get("data", "0x0"), 16) / 1e6
-        if value >= expected_usdt * 0.999:
-            return {"ok": True, "tx_hash": lg["transactionHash"], "amount_usdt": round(value, 6)}
-    return {"ok": False, "error": "no inbound USDT transfer meeting the amount in recent blocks"}
 
 
 # ---------------- Issue parsing ----------------
@@ -230,26 +226,27 @@ def main() -> int:
     chain = (fields.get("chain") or "").lower()
     order_id = fields.get("order_id") or f"MG-ISSUE-{number}"
     customer = fields.get("customer") or author
-    tx_hash = fields.get("tx_hash") or ""
-    tx_hash = re.sub(r"^<|>$", "", tx_hash)
 
     if plan not in PLAN_DURATIONS:
         return emit({"result": "ERROR", "reason": f"unknown plan '{plan}'"}, None, 2)
     expected_usdt, days = PLAN_DURATIONS[plan]
 
+    tx_hash = re.sub(r"^<|>$", "", (fields.get("tx_hash") or "").strip()).strip()
+    if not tx_hash or tx_hash.startswith("PASTE_"):
+        return emit({"result": "NOT_FOUND",
+                     "reason": "no transaction hash provided — edit the issue and paste your TX hash"},
+                    None, 1)
+
+    repo_full = os.environ.get("GITHUB_REPOSITORY", "")
+    gh_token = os.environ.get("GITHUB_TOKEN", "")
+    if repo_full and gh_token and tx_already_claimed(repo_full, tx_hash, number, gh_token):
+        return emit({"result": "ERROR", "reason": "this transaction hash was already claimed on another order"}, None, 2)
+
     try:
         if chain == "solana":
-            verdict = solana_verify_tx(tx_hash, expected_usdt) if tx_hash and not tx_hash.startswith("<") else {"ok": False, "error": "no tx hash provided"}
-            if not verdict.get("ok"):
-                scanned = solana_scan_recent(expected_usdt)
-                if scanned.get("ok"):
-                    verdict = scanned
+            verdict = solana_verify_tx(tx_hash, expected_usdt)
         elif chain == "ethereum":
-            verdict = eth_verify_tx(tx_hash, expected_usdt) if tx_hash and not tx_hash.startswith("<") else {"ok": False, "error": "no tx hash provided"}
-            if not verdict.get("ok"):
-                scanned = eth_scan_recent(expected_usdt)
-                if scanned.get("ok"):
-                    verdict = scanned
+            verdict = eth_verify_tx(tx_hash, expected_usdt)
         else:
             return emit({"result": "ERROR", "reason": f"unknown chain '{chain}'"}, None, 2)
     except Exception as exc:
