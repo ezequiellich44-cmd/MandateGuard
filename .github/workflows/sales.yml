@@ -1,0 +1,108 @@
+name: sales
+
+on:
+  issues:
+    types: [opened, edited]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: sales-${{ github.event.issue.number || 'manual' }}
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.issue.title, '[PURCHASE]') ||
+      startsWith(github.event.issue.title, '[TRIAL]')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install mandateguard
+        run: python -m pip install -e .
+
+      - name: Process sales issue
+        id: sale
+        env:
+          LICENSE_PRIVATE_KEY: ${{ secrets.LICENSE_PRIVATE_KEY }}
+          LICENSE_FILE: ${{ runner.temp }}/license.txt
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: |
+          set +e
+          python tools/sales_process.py | tee "$RUNNER_TEMP/verdict.json"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Deliver license
+        if: steps.sale.outputs.exit_code == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          {
+            echo "## ✅ Your MandateGuard Pro license"
+            echo ""
+            echo "Payment verified on-chain. Your signed license is below."
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/license.txt"
+            echo '```'
+            echo ""
+            echo "### Activate (choose one)"
+            echo ""
+            echo "**MCP server** — add to your MCP client config:"
+            echo '```json'
+            echo '{ "env": { "MANDATEGUARD_LICENSE": "<paste license string>" } }'
+            echo '```'
+            echo ""
+            echo "**CLI** — verify it:"
+            echo '```bash'
+            echo 'pip install mandateguard'
+            echo 'mandateguard license-verify --license "<paste license string>"'
+            echo '```'
+            echo ""
+            echo "Questions? Reply here or email ezequiellich44@gmail.com."
+            echo ""
+            echo "---"
+            echo "<sub>Automated delivery by MandateGuard sales bot · docs: https://ezequiellich44-cmd.github.io/MandateGuard/buy.html</sub>"
+          } > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
+          gh issue close "$ISSUE" --reason completed
+
+      - name: Payment not found yet
+        if: steps.sale.outputs.exit_code == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          REASON=$(python -c "import json;print(json.load(open('$RUNNER_TEMP/verdict.json')).get('reason','verification pending'))")
+          gh issue comment "$ISSUE" --body "⏳ **Payment not detected yet.**
+
+Reason: \`$REASON\`
+
+Checklist:
+- TX confirmed? Solana needs ~1 slot, Ethereum ~12+ confirmations.
+- Correct chain and token? USDT-SPL (Solana) or USDT-ERC20 (Ethereum) only.
+- Exact amount sent? Partial payments cannot be matched.
+- Right wallet? See https://ezequiellich44-cmd.github.io/MandateGuard/buy.html
+
+Edit this issue with the correct TX hash and the bot re-runs automatically."
+
+      - name: Processing error
+        if: steps.sale.outputs.exit_code == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          REASON=$(python -c "import json;print(json.load(open('$RUNNER_TEMP/verdict.json')).get('reason','internal error'))")
+          gh issue comment "$ISSUE" --body "⚠️ **Verification error:** \`$REASON\`. A human will review shortly. Email ezequiellich44@gmail.com with your order ID for priority handling."
