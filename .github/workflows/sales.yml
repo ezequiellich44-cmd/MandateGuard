@@ -70,7 +70,7 @@ jobs:
             echo ""
             echo "**CLI** — verify it:"
             echo '```bash'
-            echo 'pip install mandateguard'
+            echo 'pip install git+https://github.com/ezequiellich44-cmd/MandateGuard.git'
             echo 'mandateguard license-verify --license "<paste license string>"'
             echo '```'
             echo ""
